@@ -197,8 +197,7 @@ def test_get_environment(run_pipeline):
 
 
 @pytest.mark.parametrize(
-    "config_file,exp_config_flags",
-    ((None, []), ("klio-job2.yaml", ["--config-file", "klio-job2.yaml"])),
+    "config_file", (None, "klio-job2.yaml"),
 )
 @pytest.mark.parametrize(
     "image_tag,exp_image_flags",
@@ -219,7 +218,6 @@ def test_get_command(
     image_tag,
     exp_image_flags,
     config_file,
-    exp_config_flags,
     run_pipeline,
     monkeypatch,
 ):
@@ -231,6 +229,8 @@ def test_get_command(
         image_tag=image_tag, config_file_override=config_file
     )
     monkeypatch.setattr(run_pipeline, "docker_runtime_config", runtime_config)
+
+    exp_config_flags = ["--config-file", run_job.MATERIALIZED_CONFIG_PATH]
 
     exp_command = ["run"]
     exp_command.extend(exp_update_flag)

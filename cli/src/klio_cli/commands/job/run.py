@@ -15,16 +15,22 @@
 
 import atexit
 import logging
+import tempfile
 
 import docker
+import yaml
 
 from klio_cli import __version__ as klio_cli_version
 from klio_cli.commands import base
+from klio_cli.commands.job import configuration
 from klio_cli.utils import docker_utils
 from klio_cli.utils import stackdriver_utils as sd_utils
 
 
 GCP_CRED_FILE = "gcloud/application_default_credentials.json"
+
+# path where the temp config-file is mounted into klio-exec's container
+MATERIALIZED_CONFIG_PATH = "/usr/src/config/materialized_config.yaml"
 
 
 class RunPipeline(base.BaseDockerizedPipeline):
@@ -87,6 +93,15 @@ class RunPipeline(base.BaseDockerizedPipeline):
 
         return exit_status
 
+    def _get_volumes(self):
+        volumes = super()._get_volumes()
+        volumes[self.effective_config_file.name] = {
+            "bind": MATERIALIZED_CONFIG_PATH,
+            "mode": "rw",
+        }
+
+        return volumes
+
     def _get_environment(self):
         envs = super()._get_environment()
 
@@ -115,13 +130,17 @@ class RunPipeline(base.BaseDockerizedPipeline):
         ):  # don't do anything if `None`
             command.append("--no-update")
 
-        if self.docker_runtime_config.config_file_override:
-            command.extend(
-                [
-                    "--config-file",
-                    self.docker_runtime_config.config_file_override,
-                ]
-            )
+        self.effective_config_file = tempfile.NamedTemporaryFile(
+            prefix="/tmp/", mode="w", delete=False
+        )
+        yaml.dump(
+            self.klio_config._raw,
+            stream=self.effective_config_file,
+            Dumper=configuration.IndentListDumper,
+            default_flow_style=False,
+            sort_keys=False,
+        )
+        command.extend(["--config-file", MATERIALIZED_CONFIG_PATH])
 
         return command
 

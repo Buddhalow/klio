@@ -22,6 +22,7 @@ from apache_beam.testing import test_pipeline
 from klio_core.proto import klio_pb2
 
 from klio.transforms import helpers
+from klio.transforms import core
 
 
 class BaseTest:
